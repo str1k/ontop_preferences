@@ -26,8 +26,8 @@ if __name__ == "__main__":
     conf = SparkConf().setAppName("ontop_duration_score")
     sc = SparkContext(conf=conf)
     sqlContext = SQLContext(sc)
-    ontop_preferences = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/package_preferences_rowId_3')
-    customer_persona = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/customer_persona_rowId_3')
+    ontop_preferences = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/package_preferences_rowId')
+    customer_persona = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/customer_persona_rowId')
     index_ct = customer_persona.drop("analytic_id")
     index_anaId = customer_persona.select("id","analytic_id")
     index_ct.registerTempTable("index_ct")
@@ -66,6 +66,6 @@ if __name__ == "__main__":
             tmp = tmp.join(index_anaId, ["id"], "left_outer")
             tmp = tmp.selectExpr("analytic_id", "id", "_2 as Package_Duration_XS", "_3 as Package_Duration_S","_4 as Package_Duration_M", "_5 as Package_Duration_L","_6 as Package_Duration_XL")
             res = res.unionAll(tmp)
-            res.write.option("sep","|").option("header","true").csv("/ontop_pref/ontop_duration_score_2")
+            res.write.option("sep","|").option("header","true").csv("/ontop_pref/ontop_duration_score")
         i = i+1
     sc.stop()
