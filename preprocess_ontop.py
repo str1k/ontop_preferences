@@ -23,12 +23,20 @@ def multiply_all(t_df):
     for field in t_df.schema.fields:
         name = field.name
         if name != "total_transaction":
+            print("pass")
+        elif name != "analytic_id":
+            print("pass")
+        else:
             t_df = t_df.withColumn(name, col(name)*col('total_transaction'))
     return t_df
 def divide_all(t_df):
     for field in t_df.schema.fields:
         name = field.name
         if name != "ontop_purchased":
+            print("pass")
+        elif name != "analytic_id":
+            print("pass")
+        else:
             t_df = t_df.withColumn(name, col(name)/col('ontop_purchased'))
     t_df = t_df.drop('ontop_purchased')      
     return t_df
@@ -103,7 +111,7 @@ if __name__ == "__main__":
     parsed_master_final=parsed_master_final.withColumn("Package_Size_Social", parsed_master_final["Package_Size_Social"].cast(IntegerType()))
     parsed_master_final=parsed_master_final.withColumn("Package_Size_Entertain", parsed_master_final["Package_Size_Entertain"].cast(IntegerType()))
     
-    joinedtarif = df_ontop1802.join(master_jean3.select(col("PromotionCode").alias("package_id"),col("PackageName").alias("Unique_Name")), ["package_id"], "left_outer")
+    joinedtarif = df_ontop1802.join(master_jean3.select(col("PromotionCode").alias("package_id"),col("PackageName").alias("Unique_Name")), ["package_id"], "inner")
     customer_trans = joinedtarif.na.drop(subset=["Unique_Name"])
     customer_trans_simp = customer_trans.select(col("analytic_id"),col("total_transaction"),col("Unique_Name").alias("Package_Name")).na.drop(subset=["Package_Name"])
     
@@ -117,7 +125,7 @@ if __name__ == "__main__":
     customer_trans_simp.registerTempTable("cust_trans_simp")
     ontop_purchased = sqlContext.sql("SELECT analytic_id, SUM(total_transaction) as ontop_purchased FROM cust_trans_simp GROUP BY analytic_id")
 
-    customer_trans_final = customer_trans_final.join(ontop_purchased,["analytic_id"],"left_outer")
+    customer_trans_final = customer_trans_final.join(ontop_purchased,["analytic_id"],"inner")
     customer_trans_final = divide_all(customer_trans_final)
 
     customer_trans_final.registerTempTable("cust_trans_final")
@@ -143,7 +151,7 @@ if __name__ == "__main__":
     ontop_rowid2 = ontop_rowid.withColumnRenamed("Package_Size_Full speed", "Package_Size_Full_speed")
     ontop_rowid2.registerTempTable("ontop_rowid2")
     index_pp2 = sqlContext.sql("SELECT id-1 as id,Package_Duration_XS,Package_Duration_S,Package_Duration_M,Package_Duration_L,Package_Duration_XL,Price_XS,Price_S,Price_M,Price_L,Price_XL,Package_Size_64Kbps,Package_Size_256Kbps,Package_Size_384Kbps,Package_Size_512Kbps,Package_Size_1Mbps,Package_Size_2Mbps,Package_Size_4Mbps,Package_Size_6Mbps,Package_Size_Unlimit_Timed,Package_Size_Unlimit,Package_Size_Trotting_S,Package_Size_Trotting_M,Package_Size_Trotting_L,Package_Size_Qouta_S,Package_Size_Qouta_M,Package_Size_Qouta_L,Package_Size_Social,Package_Size_Entertain FROM ontop_rowid2")
-    index_pp2.repartition(1).write.option("sep","|").option("header","true").csv("/preprocessed_cvm/package_preferences_rowId_3")
+    index_pp2.repartition(1).write.option("sep","|").option("header","true").csv("/preprocessed_cvm/package_preferences_rowId")
     package_sort = ontop_rowid.select('New_Package_Name').rdd.map(lambda r: r[0]).collect()
     query = ''
     for c in package_sort:
@@ -156,7 +164,7 @@ if __name__ == "__main__":
     final_rowindex.registerTempTable("final_rowindex")
     index_ct = sqlContext.sql("SELECT id-1 as id,analytic_id" + query + " FROM final_rowindex")
     index_ct.registerTempTable("index_ct ")
-    index_ct.write.option("sep","|").option("header","true").csv("/preprocessed_cvm/customer_persona_rowId_3")
+    index_ct.write.option("sep","|").option("header","true").csv("/preprocessed_cvm/customer_persona_rowId")
     sc.stop()
 
 
