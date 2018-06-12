@@ -22,9 +22,9 @@ from pyspark.sql.functions import *
 def multiply_all(t_df):
     for field in t_df.schema.fields:
         name = field.name
-        if name != "total_transaction":
+        if name == "total_transaction":
             print("pass")
-        elif name != "analytic_id":
+        elif name == "analytic_id":
             print("pass")
         else:
             t_df = t_df.withColumn(name, col(name)*col('total_transaction'))
@@ -32,9 +32,9 @@ def multiply_all(t_df):
 def divide_all(t_df):
     for field in t_df.schema.fields:
         name = field.name
-        if name != "ontop_purchased":
+        if name == "ontop_purchased":
             print("pass")
-        elif name != "analytic_id":
+        elif name == "analytic_id":
             print("pass")
         else:
             t_df = t_df.withColumn(name, col(name)/col('ontop_purchased'))
