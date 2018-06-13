@@ -125,9 +125,6 @@ if __name__ == "__main__":
     customer_trans_simp.registerTempTable("cust_trans_simp")
     ontop_purchased = sqlContext.sql("SELECT analytic_id, SUM(total_transaction) as ontop_purchased FROM cust_trans_simp GROUP BY analytic_id")
 
-    customer_trans_final = customer_trans_final.join(ontop_purchased,["analytic_id"],"inner")
-    customer_trans_final = divide_all(customer_trans_final)
-
     customer_trans_final.registerTempTable("cust_trans_final")
     #get customer transaction ontop list to filter out dimension
     column_seq = customer_trans_simp.select('Package_Name').distinct().rdd.map(lambda r: r[0]).collect()
@@ -135,6 +132,8 @@ if __name__ == "__main__":
     for c in column_seq:
         query =  query + ", SUM(Package_Name_" + c + ") AS " + c
     final = sqlContext.sql("SELECT analytic_id" + query + " FROM cust_trans_final GROUP BY analytic_id ")
+    final = final.join(ontop_purchased,["analytic_id"],"inner")
+    final = divide_all(final)
     final.registerTempTable("final")
     
     #filter package according to existing in customer transaction and create index list of packages
