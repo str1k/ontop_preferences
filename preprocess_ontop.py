@@ -55,9 +55,18 @@ if __name__ == "__main__":
     conf = SparkConf().setAppName("Preprocess Ontop Transaction")
     sc = SparkContext(conf=conf)
     sqlContext = SQLContext(sc)
+    print("###################################################################################################")
+    print("Start Preprocessing Ontop Transaction")
+    print("###################################################################################################")
     df_ontop1802 = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('wasb://ds-cvm-hd-rs-devprod-02-2017-09-25t08-15-40-207z@natds201708cvm1sa01.blob.core.windows.net/data_cvm/ASSOCIATION/CVM_PREPAID_RECOMMENDATION_201804.txt')
+    print("###################################################################################################")
+    print("Finished Reading Ontop Transaction Data")
+    print("###################################################################################################")
     master_jean = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", ',').load('/data_cvm/master_tariff_jean.csv')
     master_jean3 = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", ',').load('/data_cvm/master_tariff_jean5.csv')
+    print("###################################################################################################")
+    print("Finished Reading Ontop Master Data")
+    print("###################################################################################################")
     masterjean3map = master_jean3.select(col("PromotionCode").alias('Promotion Code'),col("PackageName").alias("New_Package_Name"))
     master_mapping = master_jean.select(col("Promotion Code"),col("Package Name")).join(masterjean3map, ["Promotion Code"], "left_outer")
     master_mapping = master_mapping.drop_duplicates(subset=['Package Name'])
@@ -81,6 +90,9 @@ if __name__ == "__main__":
     parsed_master_final = onehotenc(parsed_master_final, "Price")
     parsed_master_final = parsed_master_final.na.drop(subset=["Package_Size"])
     parsed_master_final = onehotenc(parsed_master_final, "Package_Size")
+    print("###################################################################################################")
+    print("Finished One-hot Encoding on Ontop Master")
+    print("###################################################################################################")
     parsed_master_final = parsed_master_final.join(master_mapping.select(col("Package Name").alias("Package_Name"),col("New_Package_Name")), ["Package_Name"], "left_outer")   
     parsed_master_final=parsed_master_final.withColumn("Package_Duration_XS", parsed_master_final["Package_Duration_XS"].cast(IntegerType()))
     parsed_master_final=parsed_master_final.withColumn("Package_Duration_S", parsed_master_final["Package_Duration_S"].cast(IntegerType()))
@@ -110,15 +122,31 @@ if __name__ == "__main__":
     parsed_master_final=parsed_master_final.withColumn("Package_Size_Qouta_L", parsed_master_final["Package_Size_Qouta_L"].cast(IntegerType()))
     parsed_master_final=parsed_master_final.withColumn("Package_Size_Social", parsed_master_final["Package_Size_Social"].cast(IntegerType()))
     parsed_master_final=parsed_master_final.withColumn("Package_Size_Entertain", parsed_master_final["Package_Size_Entertain"].cast(IntegerType()))
-    
+    print("###################################################################################################")
+    print("Start Joining Ontop Transaction with Ontop Master")
+    print("###################################################################################################")
     joinedtarif = df_ontop1802.join(master_jean3.select(col("PromotionCode").alias("package_id"),col("PackageName").alias("Unique_Name")), ["package_id"], "inner")
     customer_trans = joinedtarif.na.drop(subset=["Unique_Name"])
     customer_trans_simp = customer_trans.select(col("analytic_id"),col("total_transaction"),col("Unique_Name").alias("Package_Name")).na.drop(subset=["Package_Name"])
-    
+    print("###################################################################################################")
+    print("Finished Joining Ontop Transaction with ontop Master")
+    print("###################################################################################################")
 
-
+    print("###################################################################################################")
+    print("Start Performing One-hot Encoding on Customer Ontop Transaction")
+    print("###################################################################################################")
     customer_trans_final = onehotenc(customer_trans_simp, "Package_Name")
+    print("###################################################################################################")
+    print("Finished One-hot Encoding on Customer Ontop Transaction")
+    print("###################################################################################################")
+    
+    print("###################################################################################################")
+    print("Start Multiplying total_transaction to all package features")
+    print("###################################################################################################")
     customer_trans_final = multiply_all(customer_trans_final)
+    print("###################################################################################################")
+    print("Finish Multiplying to all package features")
+    print("###################################################################################################")
     customer_trans_final = customer_trans_final.drop('total_transaction')
 
     #groupby and get sum of all purchased ontop and divide all onehot value to get probability of puchasing an ontop
@@ -131,9 +159,24 @@ if __name__ == "__main__":
     query = ''
     for c in column_seq:
         query =  query + ", SUM(Package_Name_" + c + ") AS " + c
+
+    print("###################################################################################################")
+    print("Start Group By analytic_id and get SUM of all features")
+    print("###################################################################################################")
     final = sqlContext.sql("SELECT analytic_id" + query + " FROM cust_trans_final GROUP BY analytic_id ")
+    print("###################################################################################################")
+    print("Finished Group by analytic_id and get SUM of all features")
+    print("###################################################################################################")
+
+    
     final = final.join(ontop_purchased,["analytic_id"],"inner")
+    print("###################################################################################################")
+    print("Start Multiplying group by result with number of transaction")
+    print("###################################################################################################")
     final = divide_all(final)
+    print("###################################################################################################")
+    print("Finished Multiplying group by result with number of transaction")
+    print("###################################################################################################")
     final.registerTempTable("final")
     
     #filter package according to existing in customer transaction and create index list of packages
@@ -150,7 +193,13 @@ if __name__ == "__main__":
     ontop_rowid2 = ontop_rowid.withColumnRenamed("Package_Size_Full speed", "Package_Size_Full_speed")
     ontop_rowid2.registerTempTable("ontop_rowid2")
     index_pp2 = sqlContext.sql("SELECT id-1 as id,Package_Duration_XS,Package_Duration_S,Package_Duration_M,Package_Duration_L,Package_Duration_XL,Price_XS,Price_S,Price_M,Price_L,Price_XL,Package_Size_64Kbps,Package_Size_256Kbps,Package_Size_384Kbps,Package_Size_512Kbps,Package_Size_1Mbps,Package_Size_2Mbps,Package_Size_4Mbps,Package_Size_6Mbps,Package_Size_Unlimit_Timed,Package_Size_Unlimit,Package_Size_Trotting_S,Package_Size_Trotting_M,Package_Size_Trotting_L,Package_Size_Qouta_S,Package_Size_Qouta_M,Package_Size_Qouta_L,Package_Size_Social,Package_Size_Entertain FROM ontop_rowid2")
+    print("###################################################################################################")
+    print("Start Writing Package Perferences to file")
+    print("###################################################################################################")
     index_pp2.repartition(1).write.option("sep","|").option("header","true").csv("/preprocessed_cvm/package_preferences_rowId")
+    print("###################################################################################################")
+    print("Finished Writing Package Perferences to file")
+    print("###################################################################################################")
     package_sort = ontop_rowid.select('New_Package_Name').rdd.map(lambda r: r[0]).collect()
     query = ''
     for c in package_sort:
@@ -163,7 +212,13 @@ if __name__ == "__main__":
     final_rowindex.registerTempTable("final_rowindex")
     index_ct = sqlContext.sql("SELECT id-1 as id,analytic_id" + query + " FROM final_rowindex")
     index_ct.registerTempTable("index_ct ")
+    print("###################################################################################################")
+    print("Start Writing Customer On-top Persona to file")
+    print("###################################################################################################")
     index_ct.write.option("sep","|").option("header","true").csv("/preprocessed_cvm/customer_persona_rowId")
+    print("###################################################################################################")
+    print("Finished Writing Customer On-top Persona to file")
+    print("###################################################################################################")
     sc.stop()
 
 

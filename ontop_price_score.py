@@ -26,8 +26,29 @@ if __name__ == "__main__":
     conf = SparkConf().setAppName("ontop_price_score")
     sc = SparkContext(conf=conf)
     sqlContext = SQLContext(sc)
+    print("###################################################################################################")
+    print("Start Calculating Ontop Price Score")
+    print("###################################################################################################")
+
+    print("###################################################################################################")
+    print("Start Reading Ontop Preferences Data")
+    print("###################################################################################################")
     ontop_preferences = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/package_preferences_rowId')
+    print("###################################################################################################")
+    print("Finished Reading Ontop Preferences Data")
+    print("###################################################################################################")
+    
+    print("###################################################################################################")
+    print("Start Reading Customer Preferences Data")
+    print("###################################################################################################")
     customer_persona = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", '|').load('/preprocessed_cvm/customer_persona_rowId')
+    print("###################################################################################################")
+    print("Finished Reading Customer Preferences Data")
+    print("###################################################################################################")
+
+    print("###################################################################################################")
+    print("Start Creating Customer Preferences Block Matrix")
+    print("###################################################################################################")
     index_ct = customer_persona.drop("analytic_id")
     index_anaId = customer_persona.select("id","analytic_id")
     index_ct.registerTempTable("index_ct")
@@ -35,12 +56,22 @@ if __name__ == "__main__":
     ontop_pref_price = ontop_pref_price.orderBy(asc("id"))
     bmB_1 = IndexedRowMatrix(ontop_pref_price.rdd.map(lambda x: IndexedRow(x[0], Vectors.dense(x[1:])))).toBlockMatrix(rowsPerBlock=222)
     count = customer_persona.count()
+    print("###################################################################################################")
+    print("Finished Creating Customer Preferences Block Matrix")
+    print("###################################################################################################")
     loop = int(count/200000)
     startId = 1
     i = 0
     res = index_ct
     del customer_persona
+    print("###################################################################################################")
+    print("Start Matrix Multiplication")
+    print("Number of loop: " + str(loop))
+    print("###################################################################################################")
     for x in range(loop):
+    	print("###################################################################################################")
+    	print("Starting partial Matrix Multiplication: "+str(x+1) + "/" +str(loop))
+    	print("###################################################################################################")
         if x != loop-1:
             batch = sqlContext.sql("SELECT * FROM index_ct WHERE id BETWEEN " + str(i+1) + " AND " + str(i+200001))
             matA = IndexedRowMatrix(batch.rdd.map(lambda row: IndexedRow(row[0], Vectors.dense(row[1:]))))
@@ -66,6 +97,16 @@ if __name__ == "__main__":
             tmp = tmp.join(index_anaId, ["id"], "left_outer")
             tmp = tmp.selectExpr("analytic_id", "id", "_2 as Price_XS", "_3 as Price_S","_4 as Price_M", "_5 as Price_L","_6 as Price_XL")
             res = res.unionAll(tmp)
+            print("###################################################################################################")
+            print("Finished Matrix Multiplication")
+            print("###################################################################################################")
+
+            print("###################################################################################################")
+            print("Start Writting Output file")
+            print("###################################################################################################")
             res.write.option("sep","|").option("header","true").csv("/ontop_pref/ontop_price_score")
+            print("###################################################################################################")
+            print("Finished Writting Output file")
+            print("###################################################################################################")
         i = i+1
     sc.stop()
