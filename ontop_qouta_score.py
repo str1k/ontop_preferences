@@ -96,7 +96,7 @@ if __name__ == "__main__":
             tmp = bm_Package_Size_384Kbpscore_result.toIndexedRowMatrix().rows.sortBy(lambda x : x.index).map(lambda x:  (x.index,x.vector)).toDF(["id", "vector"])
             tmp = tmp.rdd.map(extract).toDF(["id"])
             tmp = tmp.join(index_anaId, ["id"], "left_outer")
-             tmp = tmp.selectExpr("analytic_id", "id", "_2 as Package_Size_Qouta_S", "_3 as Package_Size_Qouta_M","_4 as Package_Size_Qouta_L", "_5 as Package_Size_Trotting_S","_6 as Package_Size_Trotting_M","_7 as Package_Size_Trotting_L","_8 as Package_Size_Social","_9 as Package_Size_Entertain")
+            tmp = tmp.selectExpr("analytic_id", "id", "_2 as Package_Size_Qouta_S", "_3 as Package_Size_Qouta_M","_4 as Package_Size_Qouta_L", "_5 as Package_Size_Trotting_S","_6 as Package_Size_Trotting_M","_7 as Package_Size_Trotting_L","_8 as Package_Size_Social","_9 as Package_Size_Entertain")
             res = res.unionAll(tmp)
             print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n###################################################################################################")
             print("Finished Matrix Multiplication")
